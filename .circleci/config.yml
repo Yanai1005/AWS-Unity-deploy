@@ -1,13 +1,16 @@
 version: 2.1
 
+executors:
+  unity-webgl-executor:
+    docker:
+      - image: unityci/editor:2022.3.7f1-webgl-0
+
 orbs:
-  unity: game-ci/unity@1.4.0
   aws-s3: circleci/aws-s3@3.1
 
 jobs:
   activate-license:
-    docker:
-      - image: unityci/editor:2022.3.7f1-webgl-0
+    executor: unity-webgl-executor
     steps:
       - checkout
       - run:
@@ -21,24 +24,22 @@ jobs:
             cat /root/.local/share/unity3d/Unity/Unity_lic.ulf
 
   build:
-    executor:
-      name: "unity/ubuntu"
-      target_platform: "webgl"
-      editor_version: "2022.3.7f1"
-      resource_class: "large"
+    executor: unity-webgl-executor
     steps:
       - checkout
-      - unity/prepare-env:
-          unity-license-var-name: "UNITY_ENCODED_LICENSE"
-      - unity/build:
-          project-path: "src"
-          build-target: "WebGL"
-          compress: false
-          store-artifacts: false
+      - run:
+          name: Prepare environment
+          command: |
+            echo "Preparing environment..."
+            echo $UNITY_ENCODED_LICENSE | base64 --decode > Unity_v2022.3.7f1.ulf
+      - run:
+          name: Build Unity project
+          command: |
+            unity-editor -logFile /dev/stdout -quit -batchmode -nographics -projectPath src -buildTarget WebGL -executeMethod BuildScript.Build
       - persist_to_workspace:
           root: .
           paths:
-            - "src/Builds/WebGL"
+            - src/Builds/WebGL
 
   deploy:
     docker:
@@ -48,10 +49,10 @@ jobs:
       - attach_workspace:
           at: .
       - aws-s3/sync:
-          aws-region: AWS_REGION
+          aws-region: $AWS_REGION
           role-arn: $AWS_ROLE_ARN
-          from: "src/Builds/WebGL/WebGL"
-          to: 's3:::unity-aws-deploy'
+          from: src/Builds/WebGL/WebGL
+          to: s3://unity-aws-deploy
 
 workflows:
   build-unity-project:
@@ -63,6 +64,6 @@ workflows:
             - activate-license
           context: Unity-context
       - deploy:
-          requires: 
+          requires:
             - build
           context: Unity-context
