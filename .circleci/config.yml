@@ -4,14 +4,22 @@ orbs:
   unity: game-ci/unity@1.4.0
   aws-s3: circleci/aws-s3@3.1
 
-jobs:
-  create-unity-activation-file:
-    docker:
-      - image: cimg/base:stable
-    steps:
+workflows:
+  build-unity-project:
+    jobs:
       - unity/create-activation-file:
+          name: create-unity-activation-file
           editor-version: "2022.3.7f1"
+      - build:
+          requires:
+            - create-unity-activation-file
+          context: unity
+      - deploy:
+          requires:
+            - build
+          context: aws
 
+jobs:
   build:
     executor:
       name: "unity/ubuntu"
@@ -46,16 +54,3 @@ jobs:
           role-arn: $AWS_ROLE_ARN
           from: "src/Builds/WebGL/WebGL"
           to: 's3:::unity-aws-deploy'
-
-workflows:
-  build-unity-project:
-    jobs:
-      - create-unity-activation-file
-      - build:
-          requires:
-            - create-unity-activation-file
-          context: unity
-      - deploy:
-          requires: 
-            - build
-          context: aws
