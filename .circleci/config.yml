@@ -5,19 +5,19 @@ orbs:
   aws-s3: circleci/aws-s3@3.1
 
 jobs:
-  build-unity-project:
-    jobs:
-      # Create the Unity activation license file
-      # You only need this if you are using the Personal license
-      # More info: https://game.ci/docs/circleci/activation#personal-license
+  create-activation-file:
+    docker:
+      - image: game-ci/unity:2022.3.7f1
+    steps:
       - unity/create-activation-file:
           name: "create-activation-file"
+
   build:
-    executor:
-      name: "unity/ubuntu"
-      target_platform: "webgl"
-      editor_version: "2022.3.7f1"
-      resource_class: "large"
+    docker:
+      - image: game-ci/unity:2022.3.7f1
+    environment:
+      TARGET_PLATFORM: "webgl"
+      UNITY_VERSION: "2022.3.7f1"
     steps:
       - checkout
       - unity/prepare-env:
@@ -42,7 +42,7 @@ jobs:
       - attach_workspace:
           at: .
       - aws-s3/sync:
-          aws-region: AWS_REGION
+          aws-region: $AWS_REGION
           role-arn: $AWS_ROLE_ARN
           from: "src/Builds/WebGL/WebGL"
           to: 's3:::unity-aws-deploy'
@@ -50,9 +50,10 @@ jobs:
 workflows:
   build-unity-project:
     jobs:
+      - create-activation-file
       - build:
-          context: unity
+          requires:
+            - create-activation-file
       - deploy:
-          requires: 
+          requires:
             - build
-          context: aws
