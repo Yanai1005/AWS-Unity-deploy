@@ -1,13 +1,13 @@
 version: 2.1
 
 orbs:
-  unity: game-ci/unity@2.2.0
+  unity: game-ci/unity@1.4.0
   aws-s3: circleci/aws-s3@3.1
 
 jobs:
   activate-license:
     docker:
-      - image: unityci/editor:2022.3.7f1-webgl-0  # 利用可能なUnityバージョンを指定
+      - image: unityci/editor:2022.3.7f1-webgl-0
     steps:
       - checkout
       - run:
@@ -24,7 +24,7 @@ jobs:
     executor:
       name: "unity/ubuntu"
       target_platform: "webgl"
-      editor_version: "2022.3.7f1"  # 利用可能なUnityバージョンを指定
+      editor_version: "2022.3.7f1"
       resource_class: "large"
     steps:
       - checkout
@@ -57,12 +57,12 @@ workflows:
   build-unity-project:
     jobs:
       - activate-license:
-          context: Unity-context  # Unity-contextを指定
+          context: Unity-context
       - build:
           requires:
             - activate-license
-          context: Unity-context  # Unity-contextを指定
+          context: Unity-context
       - deploy:
           requires: 
             - build
-          context: Unity-context  # Unity-contextを指定
+          context: Unity-context
