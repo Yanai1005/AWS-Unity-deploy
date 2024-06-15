@@ -1,43 +1,51 @@
-# Couldn't automatically generate a config from your source code.
-# This is a generic template to serve as a base for your custom config
-# See: https://circleci.com/docs/configuration-reference
 version: 2.1
+
+orbs:
+  unity: game-ci/unity@1.4.0
+  aws-s3: circleci/aws-s3@3.1
+
 jobs:
-  test:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      # Replace this with a real test runner invocation
-      - run:
-          name: Run tests
-          command: echo 'replace me with real tests!' && false
   build:
-    docker:
-      - image: cimg/base:stable
+    executor:
+      name: "unity/ubuntu"
+      target_platform: "webgl"
+      editor_version: "2022.3.26f1"
+      resource_class: "large"
     steps:
       - checkout
-      # Replace this with steps to build a package, or executable
-      - run:
-          name: Build an artifact
-          command: touch example.txt
-      - store_artifacts:
-          path: example.txt
+      - unity/prepare-env:
+          unity-license-var-name: "UNITY_ENCODED_LICENSE"
+          unity-username-var-name: "UNITY_USERNAME"
+          unity-password-var-name: "UNITY_PASSWORD"
+      - unity/build:
+          project-path: "src"
+          build-target: "WebGL"
+          compress: false
+          store-artifacts: false
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "src/Builds/WebGL"
+
   deploy:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/aws:2022.11
     steps:
-      # Replace this with steps to deploy to users
-      - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+      - checkout
+      - attach_workspace:
+          at: .
+      - aws-s3/sync:
+          aws-region: "ap-northeast-1"
+          role-arn: $AWS_ROLE_ARN
+          from: "src/Builds/WebGL/WebGL"
+          to: 's3:::unity-aws-deploy'
+
 workflows:
-  example:
+  build-unity-project:
     jobs:
-      - test
       - build:
-          requires:
-            - test
+          context: unity
       - deploy:
-          requires:
-            - test
+          requires: 
+            - build
+          context: aws
