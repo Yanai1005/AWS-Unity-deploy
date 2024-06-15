@@ -22,6 +22,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c0f6c47a46e9447649b416b5ad2291ba
+    m_Address: Assets/Scenes/AddressablesS3CroudFront/cat.png
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: b88d2147696ed4c50880cfe55aa36ac4, type: 2}
   m_SchemaSet:
