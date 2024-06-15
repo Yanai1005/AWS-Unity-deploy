@@ -1,45 +1,38 @@
 version: 2.1
 
-executors:
-  unity-webgl-executor:
-    docker:
-      - image: unityci/editor:2022.3.7f1-webgl-0
-
 orbs:
+  unity: game-ci/unity@1.4.0
   aws-s3: circleci/aws-s3@3.1
 
 jobs:
-  activate-license:
-    executor: unity-webgl-executor
-    steps:
-      - checkout
-      - run:
-          name: Activate Unity license
-          command: |
-            echo $UNITY_ENCODED_LICENSE | base64 --decode > Unity_v2022.3.7f1.ulf
-            unity-editor -logFile /dev/stdout -quit -batchmode -nographics -manualLicenseFile Unity_v2022.3.7f1.ulf
-      - run:
-          name: Check Unity license activation
-          command: |
-            cat /root/.local/share/unity3d/Unity/Unity_lic.ulf
-
+  build-unity-project:
+    jobs:
+      # Create the Unity activation license file
+      # You only need this if you are using the Personal license
+      # More info: https://game.ci/docs/circleci/activation#personal-license
+      - unity/create-activation-file:
+          name: "create-activation-file"
   build:
-    executor: unity-webgl-executor
+    executor:
+      name: "unity/ubuntu"
+      target_platform: "webgl"
+      editor_version: "2022.3.7f1"
+      resource_class: "large"
     steps:
       - checkout
-      - run:
-          name: Prepare environment
-          command: |
-            echo "Preparing environment..."
-            echo $UNITY_ENCODED_LICENSE | base64 --decode > Unity_v2022.3.7f1.ulf
-      - run:
-          name: Build Unity project
-          command: |
-            unity-editor -logFile /dev/stdout -quit -batchmode -nographics -projectPath src -buildTarget WebGL -executeMethod BuildScript.Build
+      - unity/prepare-env:
+          unity-license-var-name: "UNITY_ENCODED_LICENSE"
+          unity-username-var-name: "UNITY_USERNAME"
+          unity-password-var-name: "UNITY_PASSWORD"
+      - unity/build:
+          project-path: "src"
+          build-target: "WebGL"
+          compress: false
+          store-artifacts: false
       - persist_to_workspace:
           root: .
           paths:
-            - src/Builds/WebGL
+            - "src/Builds/WebGL"
 
   deploy:
     docker:
@@ -51,19 +44,15 @@ jobs:
       - aws-s3/sync:
           aws-region: AWS_REGION
           role-arn: $AWS_ROLE_ARN
-          from: src/Builds/WebGL/WebGL
-          to: s3://unity-aws-deploy
+          from: "src/Builds/WebGL/WebGL"
+          to: 's3:::unity-aws-deploy'
 
 workflows:
   build-unity-project:
     jobs:
-      - activate-license:
-          context: Unity-context
       - build:
-          requires:
-            - activate-license
-          context: Unity-context
+          context: unity
       - deploy:
-          requires:
+          requires: 
             - build
-          context: Unity-context
+          context: aws
