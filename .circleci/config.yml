@@ -1,22 +1,35 @@
 version: 2.1
 
 orbs:
-  unity: game-ci/unity@1.4.0
+  unity: game-ci/unity@2.2.0
   aws-s3: circleci/aws-s3@3.1
 
 jobs:
+  activate-license:
+    docker:
+      - image: unityci/editor:2022.3.7f1-webgl-0  # 利用可能なUnityバージョンを指定
+    steps:
+      - checkout
+      - run:
+          name: Activate Unity license
+          command: |
+            echo $UNITY_ENCODED_LICENSE | base64 --decode > Unity_v2022.3.7f1.ulf
+            unity-editor -logFile /dev/stdout -quit -batchmode -nographics -manualLicenseFile Unity_v2022.3.7f1.ulf
+      - run:
+          name: Check Unity license activation
+          command: |
+            cat /root/.local/share/unity3d/Unity/Unity_lic.ulf
+
   build:
     executor:
       name: "unity/ubuntu"
       target_platform: "webgl"
-      editor_version: "2022.3.7f1"
+      editor_version: "2022.3.7f1"  # 利用可能なUnityバージョンを指定
       resource_class: "large"
     steps:
       - checkout
       - unity/prepare-env:
           unity-license-var-name: "UNITY_ENCODED_LICENSE"
-          unity-username-var-name: "UNITY_USERNAME"
-          unity-password-var-name: "UNITY_PASSWORD"
       - unity/build:
           project-path: "src"
           build-target: "WebGL"
@@ -43,9 +56,13 @@ jobs:
 workflows:
   build-unity-project:
     jobs:
+      - activate-license:
+          context: Unity-context  # Unity-contextを指定
       - build:
-          context: unity
+          requires:
+            - activate-license
+          context: Unity-context  # Unity-contextを指定
       - deploy:
           requires: 
             - build
-          context: aws
+          context: Unity-context  # Unity-contextを指定
