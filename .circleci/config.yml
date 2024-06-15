@@ -9,7 +9,7 @@ workflows:
     jobs:
       - unity/create-activation-file:
           name: create-unity-activation-file
-          editor-version: "2022.3.7f1"
+          editor_version: "2022.3.7f1"
       - build:
           requires:
             - create-unity-activation-file
